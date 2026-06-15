@@ -14,7 +14,7 @@ app.use(express.json());
 
 // MongoDB Connection with fallback and status flag
 let dbConnected = false;
-const LOCAL_FALLBACK = 'mongodb://127.0.0.1:27017/himshakti';
+const LOCAL_FALLBACK = 'mongodb://127.0.0.1:27017/pahadiswaraj';
 
 async function connectWithFallback() {
   const primary = process.env.MONGODB_URI;
@@ -47,6 +47,7 @@ const descriptionSchema = new mongoose.Schema({
   features: [String],
   tone: { type: String, required: true },
   generatedOutput: { type: String, required: true },
+  generatedOutputs: [String],
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -54,17 +55,97 @@ const Description = mongoose.model('Description', descriptionSchema);
 
 // Helper function to simulate/construct keyword-rich e-commerce copy
 // (In production, replace this logic with an active fetch/SDK call to your AI model)
+function getRandomElement(items, seed) {
+  return items[seed % items.length];
+}
+
+function productCategoryHint(productName, tone) {
+  const name = productName.toLowerCase();
+  if (/tea|coffee|herb|chai|spice/.test(name)) return 'Wellness Brew';
+  if (/ghee|oil|milk|dairy/.test(name)) return 'Rich Dairy';
+  if (/snack|cookies|crisp|biscuit/.test(name)) return 'Snack Time';
+  if (/soap|cream|skincare|oil/.test(name)) return 'Beauty Ritual';
+  if (/powder|mix|blend|meal/.test(name)) return 'Functional Blend';
+  if (/seed|grain|rice|flour/.test(name)) return 'Rustic Grain';
+  if (/jam|honey|preserve/.test(name)) return 'Sweet Harvest';
+  return tone === 'Premium' ? 'Luxury Craft' : tone === 'Traditional' ? 'Heritage Classic' : 'Wellness Boost';
+}
+
+function assembleVariant(productName, ingredients, weight, featuresArray, tone, index) {
+  const category = productCategoryHint(productName, tone);
+  const featureTag = featuresArray.length ? featuresArray.map(f => `${f.trim()}`).join(', ') : 'natural ingredients';
+  const prepStyles = [
+    'crafted with care',
+    'hand-processed for purity',
+    'lovingly prepared',
+    'artfully blended',
+    'sustainably sourced'
+  ];
+
+  const benefitLines = [
+    `a premium choice for modern kitchens`,
+    `designed to elevate your everyday ritual`,
+    `perfect for those seeking authentic mountain flavor`,
+    `built for nourishment and indulgence`,
+    `the ideal companion for mindful eating`
+  ];
+
+  const toneOpeners = {
+    Premium: [
+      `Experience the pinnacle of alpine luxury with ${productName}.`,
+      `Elevate your culinary collection with ${productName}.`,
+      `Discover the exquisite richness of ${productName} today.`,
+      `Introducing ${productName}, the gold standard in premium mountain produce.`,
+      `Refine every recipe with the unmatched elegance of ${productName}.`
+    ],
+    Traditional: [
+      `Step into heritage with ${productName}.`,
+      `Bring home the time-honored flavor of ${productName}.`,
+      `Savor the age-old tradition behind ${productName}.`,
+      `Enjoy the rustic charm of ${productName}.`,
+      `A classic recipe revived with ${productName}.`
+    ],
+    'Health-Focused': [
+      `Supercharge your day with ${productName}.`,
+      `Fuel your best self with ${productName}.`,
+      `Empower your wellness journey with ${productName}.`,
+      `Choose nutrition-first with ${productName}.`,
+      `A health-conscious pick for modern living: ${productName}.`
+    ]
+  };
+
+  const formatStyles = [
+    () => `• ${productName} (${weight}) — ${featureTag}.\n   ${getRandomElement(benefitLines, index)}.\n   Made using ${getRandomElement(prepStyles, index + 1)} with ${ingredients}.`,
+    () => `Product: ${productName}\nSize: ${weight}\nIngredients: ${ingredients}\nFeatures: ${featureTag}\nTone: ${tone}\n\n${getRandomElement(toneOpeners[tone], index)} ${getRandomElement(benefitLines, index + 2)}.`,
+    () => `${getRandomElement(toneOpeners[tone], index)} This ${category} creation blends ${ingredients} in a ${weight} package for ${featureTag}. ${getRandomElement(benefitLines, index + 3)}.`,
+    () => `${productName} is a ${category.toLowerCase()} essential that features ${ingredients}. Crafted for ${tone.toLowerCase()} lovers and made to ${getRandomElement(benefitLines, index + 4)}.`,
+    () => `Fresh from the hills, ${productName} (${weight}) brings ${featureTag} together with ${ingredients}. ${getRandomElement(prepStyles, index + 2)} for a naturally satisfying experience.`,
+    () => `${productName} blends ${ingredients} into a ${weight} package that speaks to ${featureTag}. ${getRandomElement(toneOpeners[tone], index + 1)} ${getRandomElement(benefitLines, index)}.`,
+    () => `Inspired by mountain tradition, ${productName} offers ${featureTag} in every ${weight} serving. Perfect for those who want ${getRandomElement(benefitLines, index + 5)}.`,
+    () => `A signature ${category.toLowerCase()} selection, ${productName} combines ${ingredients} with ${featureTag}. ${getRandomElement(prepStyles, index + 3)} for a memorable premium experience.`,
+    () => `${productName} captures the spirit of the hills, pairing ${ingredients} and ${featureTag} in ${weight} of pure goodness. ${getRandomElement(benefitLines, index + 6)}.`,
+    () => `Rich, aromatic, and soulfully crafted, ${productName} is ${getRandomElement(benefitLines, index + 7)} using ${ingredients}. Every bite of this ${weight} batch is a tribute to mountain heritage.`,
+    () => `${getRandomElement(toneOpeners[tone], index + 2)} This ${weight} offering is enriched with ${ingredients}, ${featureTag}, and the power of PahadiSwaraj tradition.`,
+    () => `Designed for discerning customers, ${productName} uses ${ingredients} to create ${featureTag}. ${getRandomElement(prepStyles, index + 4)} and ready to brighten your table.`,
+    () => `${productName} is a ${tone === 'Premium' ? 'luxury' : tone === 'Traditional' ? 'classic' : 'healthy'} expression of mountain wellness. It combines ${ingredients} with ${featureTag} in every ${weight} serving.`,
+    () => `From the valley to your hands, ${productName} delivers ${featureTag} in a ${weight} package. Designed for ${tone.toLowerCase()} enjoyment and everyday ritual.`,
+    () => `Bold flavor meets meaningful ingredients in ${productName}. ${ingredients} are balanced with ${featureTag}, creating a ${weight} experience made for modern mountain living.`,
+    () => `Taste the authenticity of ${productName} with ${ingredients}, ${featureTag}, and a ${weight} presentation that honors alpine craftsmanship. ${getRandomElement(benefitLines, index + 8)}.`,
+    () => `A thoughtful mountain choice, ${productName} blends ${ingredients} with ${featureTag}. Enjoy ${getRandomElement(benefitLines, index + 9)} in every ${weight}.`,
+    () => `${productName} brings ${ingredients} and ${featureTag} together so you can enjoy ${getRandomElement(benefitLines, index + 10)}. Perfect for the health-conscious, tradition-loving, or premium-seeking shopper.`,
+    () => `This ${weight} selection of ${productName} leverages ${ingredients} and ${featureTag} for an inspiring product story. ${getRandomElement(prepStyles, index + 5)} to keep the experience fresh.`,
+    () => `${productName} is crafted to feel both authentic and modern. With ${ingredients}, ${featureTag}, and a ${weight} format built around your lifestyle, it delivers a rare and memorable mountain-inspired touch.`,
+  ];
+
+  return formatStyles[index % formatStyles.length]();
+}
+
 function generateMockAICopy(productName, ingredients, weight, featuresArray, tone) {
-  const featuresList = featuresArray.map(f => `• ${f.trim()}`).join('\n');
-  
-  if (tone === 'Premium') {
-    return `Indulge in the luxury of pure mountain wellness with HimShakti's ${productName}. Crafted for the discerning palate, this exquisite ${weight} offering features premium ingredients including ${ingredients}.\n\nEvery element is sourced from pristine high-altitude regions, ensuring unparalleled quality, unmatched rich aroma, and sophisticated taste. Perfect as an elegant upgrade to your culinary ritual.\n\nKey Highlights:\n${featuresList}`;
-  } else if (tone === 'Traditional') {
-    return `Bring the time-honored heritage of the Himalayas straight to your kitchen table with HimShakti ${productName} (${weight}). Handed down through generations of local agricultural wisdom, this recipe spotlights pure ${ingredients}.\n\nProcessed using authentic traditional methods, it retains its rustic aroma and true regional character. A comforting taste of mountain culture.\n\nKey Highlights:\n${featuresList}`;
-  } else {
-    // Health-Focused
-    return `Supercharge your daily nutrition with HimShakti ${productName} (${weight}). Formulated specifically for optimal health and vitality, this nutrient-dense mix leverages the raw, holistic power of ${ingredients}.\n\nDesigned to seamlessly fit into your health-conscious lifestyle, it provides essential macro and micro-nutrients without any artificial additives or preservatives.\n\nKey Highlights:\n${featuresList}`;
+  const variants = [];
+  for (let i = 0; i < 20; i += 1) {
+    variants.push(assembleVariant(productName, ingredients, weight, featuresArray, tone, i));
   }
+  return variants;
 }
 
 // Routes
@@ -83,8 +164,9 @@ app.post('/api/generate', async (req, res) => {
       ? features.split(',').map(f => f.trim()).filter(Boolean)
       : features;
 
-    // Generate description text
-    const generatedOutput = generateMockAICopy(productName, ingredients, weight, featuresArray, tone);
+    // Generate a set of description variants
+    const generatedOutputs = generateMockAICopy(productName, ingredients, weight, featuresArray, tone);
+    const generatedOutput = generatedOutputs[0] || '';
 
     // Save history point to MongoDB Atlas
     const newRecord = new Description({
@@ -93,14 +175,15 @@ app.post('/api/generate', async (req, res) => {
       weight,
       features: featuresArray,
       tone,
-      generatedOutput
+      generatedOutput,
+      generatedOutputs
     });
     
     await newRecord.save();
 
     res.status(200).json({ 
       success: true, 
-      data: generatedOutput,
+      data: generatedOutputs,
       recordId: newRecord._id 
     });
   } catch (error) {
@@ -135,7 +218,37 @@ function shutdown() {
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
 
+// Delete a single history record
+app.delete('/api/history/:id', async (req, res) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ error: 'Database unavailable. Check MongoDB connection.' });
+    }
+    const { id } = req.params;
+    const deleted = await Description.findByIdAndDelete(id);
+    if (!deleted) return res.status(404).json({ error: 'Record not found' });
+    res.status(200).json({ success: true, message: 'Record deleted' });
+  } catch (error) {
+    console.error('Delete history error:', error);
+    res.status(500).json({ error: 'Failed to delete history record', details: error.message });
+  }
+});
+
+// Clear all history
+app.delete('/api/history', async (req, res) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ error: 'Database unavailable. Check MongoDB connection.' });
+    }
+    await Description.deleteMany({});
+    res.status(200).json({ success: true, message: 'All history cleared' });
+  } catch (error) {
+    console.error('Clear history error:', error);
+    res.status(500).json({ error: 'Failed to clear history', details: error.message });
+  }
+});
+
 app.listen(PORT, () => {
-  console.log(`HimShakti Backend Engine running on port ${PORT}`);
+  console.log(`PahadiSwaraj Backend Engine running on port ${PORT}`);
   if (!dbConnected) console.warn('Warning: Database is not connected. Routes that use the DB will return 503.');
 });

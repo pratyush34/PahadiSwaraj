@@ -11,10 +11,18 @@ export default function App() {
   });
 
   const [output, setOutput] = useState('');
+  const [variations, setVariations] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [history, setHistory] = useState([]);
   const [errorMessage, setErrorMessage] = useState('');
+
+  // Theme handling (light/dark)
+  const [theme, setTheme] = useState(() => (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light');
+  useEffect(() => {
+    if (theme === 'dark') document.body.classList.add('dark');
+    else document.body.classList.remove('dark');
+  }, [theme]);
 
   // Fetch recent history on load
   const fetchHistory = async () => {
@@ -53,7 +61,9 @@ export default function App() {
 
       const result = await response.json();
       if (response.ok) {
-        setOutput(result.data);
+        const variants = Array.isArray(result.data) ? result.data : [result.data];
+        setVariations(variants);
+        setOutput(variants[0] || '');
         fetchHistory(); // Refresh recent items pipeline
       } else {
         setErrorMessage(result.error || 'Something went wrong.');
@@ -76,11 +86,43 @@ export default function App() {
     }
   };
 
+  const handleDelete = async (id) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/history/${id}`, { method: 'DELETE' });
+      if (res.ok) fetchHistory();
+      else {
+        const json = await res.json();
+        setErrorMessage(json.error || 'Failed to delete record');
+      }
+    } catch (err) {
+      setErrorMessage('Unable to reach backend to delete record.');
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (!confirm('Clear all stored logs? This action cannot be undone.')) return;
+    try {
+      const res = await fetch('http://localhost:5000/api/history', { method: 'DELETE' });
+      if (res.ok) fetchHistory();
+      else {
+        const json = await res.json();
+        setErrorMessage(json.error || 'Failed to clear history');
+      }
+    } catch (err) {
+      setErrorMessage('Unable to reach backend to clear history.');
+    }
+  };
+
   return (
     <div className="container">
       <header className="header">
-        <h1>HimShakti</h1>
-        <p>E-Commerce Keyword-Rich Description Optimizer</p>
+        <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:12}}>
+          <h1 style={{margin:0}}><span className="emoji">🏔️</span> PahadiSwaraj <span className="emoji">🌾</span></h1>
+        </div>
+        <p className="sub">E-Commerce Keyword-Rich Description Optimizer — make mountain products sing ✨</p>
+        <div style={{position:'absolute', right:16, top:16}} className="controls">
+          <button className="btn-ghost" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? '🌙 Dark' : '☀️ Light'}</button>
+        </div>
       </header>
 
       <div className="workspace">
@@ -154,13 +196,33 @@ export default function App() {
         {/* Output Panel */}
         <div className="card output-panel">
           <div className="output-header">
-            <h3>Optimized Description Output</h3>
+            <div>
+              <h3>Optimized Description Output</h3>
+              {variations.length > 1 && (
+                <p style={{margin:'0.25rem 0 0 0', opacity:0.85}}>Showing variant 1 of {variations.length}</p>
+              )}
+            </div>
             {output && (
               <button onClick={handleCopy} className={`btn-secondary ${copied ? 'copied' : ''}`}>
-                {copied ? '✓ Copied to Clipboard!' : 'Copy Copy Text'}
+                {copied ? '✓ Copied to Clipboard!' : 'Copy Text'}
               </button>
             )}
           </div>
+
+          {variations.length > 1 && (
+            <div className="variant-list">
+              {variations.map((item, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  className={`btn-secondary variant-button ${output === item ? 'active' : ''}`}
+                  onClick={() => setOutput(item)}
+                >
+                  Var {idx + 1}
+                </button>
+              ))}
+            </div>
+          )}
 
           <textarea 
             value={output} 
@@ -176,13 +238,26 @@ export default function App() {
       {/* History Feed */}
       {history.length > 0 && (
         <div className="history-section">
-          <h3>Recently Stored Logs (MongoDB Atlas Pipeline)</h3>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+            <h3>Recently Stored Logs</h3>
+            <div>
+              <button className="btn-ghost" onClick={fetchHistory}>🔄 Refresh</button>
+              <button className="btn-danger" onClick={handleClearAll} style={{marginLeft:8}}>🧹 Clear All</button>
+            </div>
+          </div>
           <div className="history-grid">
             {history.map((item) => (
-              <div key={item._id} className="history-card" onClick={() => setOutput(item.generatedOutput)}>
-                <h4>{item.productName} <span className="tag">{item.tone}</span></h4>
-                <p><strong>Ingredients:</strong> {item.ingredients} | <strong>Weight:</strong> {item.weight}</p>
-                <small>Click card to restore this copy text inside the editor window.</small>
+              <div key={item._id} className="history-card">
+                <div style={{display:'flex',justifyContent:'space-between', alignItems:'flex-start'}}>
+                  <div style={{cursor:'pointer', flex:1}} onClick={() => setOutput(item.generatedOutput)}>
+                    <h4>{item.productName} <span className="tag">{item.tone}</span></h4>
+                    <p><strong>Ingredients:</strong> {item.ingredients} | <strong>Weight:</strong> {item.weight}</p>
+                    <small>Click card to restore this copy text inside the editor window.</small>
+                  </div>
+                  <div className="history-actions">
+                    <button title="Delete" className="btn-danger" onClick={() => handleDelete(item._id)}>🗑️</button>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
