@@ -12,10 +12,32 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// MongoDB Atlas Connection
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('Connected to MongoDB Atlas successfully'))
-  .catch((err) => console.error('MongoDB connection error:', err));
+// MongoDB Connection with fallback and status flag
+let dbConnected = false;
+const LOCAL_FALLBACK = 'mongodb://127.0.0.1:27017/himshakti';
+
+async function connectWithFallback() {
+  const primary = process.env.MONGODB_URI;
+  const attempts = [primary, LOCAL_FALLBACK].filter(Boolean);
+
+  for (const uri of attempts) {
+    if (!uri) continue;
+    try {
+      await mongoose.connect(uri);
+      console.log('Connected to MongoDB at', uri.includes('127.0.0.1') ? 'local instance' : 'remote host');
+      dbConnected = true;
+      return;
+    } catch (err) {
+      console.error(`MongoDB connection attempt failed for ${uri}:`, err.message || err);
+    }
+  }
+
+  console.error('All MongoDB connection attempts failed. Continuing without DB connection.');
+  dbConnected = false;
+}
+
+// Try to connect before starting the server
+connectWithFallback();
 
 // Product Description Schema & Model
 const descriptionSchema = new mongoose.Schema({
@@ -48,6 +70,9 @@ function generateMockAICopy(productName, ingredients, weight, featuresArray, ton
 // Routes
 app.post('/api/generate', async (req, res) => {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ error: 'Database unavailable. Check MongoDB connection.' });
+    }
     const { productName, ingredients, weight, features, tone } = req.body;
 
     if (!productName || !ingredients || !weight || !tone) {
@@ -87,6 +112,9 @@ app.post('/api/generate', async (req, res) => {
 // Retrieve history route
 app.get('/api/history', async (req, res) => {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ error: 'Database unavailable. Check MongoDB connection.' });
+    }
     const history = await Description.find().sort({ createdAt: -1 }).limit(10);
     res.status(200).json({ success: true, data: history });
   } catch (error) {
@@ -95,6 +123,19 @@ app.get('/api/history', async (req, res) => {
   }
 });
 
+// Graceful shutdown handlers
+function shutdown() {
+  console.log('Shutting down server...');
+  mongoose.connection.close(false).then(() => {
+    console.log('MongoDB connection closed.');
+    process.exit(0);
+  }).catch(() => process.exit(1));
+}
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
+
 app.listen(PORT, () => {
   console.log(`HimShakti Backend Engine running on port ${PORT}`);
+  if (!dbConnected) console.warn('Warning: Database is not connected. Routes that use the DB will return 503.');
 });
