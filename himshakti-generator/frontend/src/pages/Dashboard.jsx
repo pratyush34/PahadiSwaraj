@@ -38,6 +38,18 @@ export default function Dashboard() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const getRandomVariation = () => {
+    if (variations.length === 0) return '';
+    const randomIndex = Math.floor(Math.random() * variations.length);
+    return variations[randomIndex];
+  };
+
+  const handleRefreshVariation = () => {
+    const randomOutput = getRandomVariation();
+    setOutput(randomOutput);
+    setCopied(false);
+  };
+
   const handleGenerate = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -55,7 +67,9 @@ export default function Dashboard() {
       if (response.ok) {
         const variants = Array.isArray(result.data) ? result.data : [result.data];
         setVariations(variants);
-        setOutput(variants[0] || '');
+        // Show a random variation instead of the first one
+        const randomVariation = variants[Math.floor(Math.random() * variants.length)];
+        setOutput(randomVariation || '');
         fetchHistory();
       } else {
         setErrorMessage(result.error || 'Something went wrong.');
@@ -186,13 +200,18 @@ export default function Dashboard() {
             <div>
               <h3>Optimized Description Output</h3>
               {variations.length > 1 && (
-                <p style={{margin:'0.25rem 0 0 0', opacity:0.85}}>Showing variant 1 of {variations.length}</p>
+                <p style={{margin:'0.25rem 0 0 0', opacity:0.85}}>Random variant selected</p>
               )}
             </div>
             {output && (
-              <button onClick={handleCopy} className={`btn-secondary ${copied ? 'copied' : ''}`}>
-                {copied ? '✓ Copied!' : 'Copy Text'}
-              </button>
+              <div style={{display: 'flex', gap: '0.5rem'}}>
+                <button onClick={handleRefreshVariation} className="btn-secondary" title="Get another random variation">
+                  🔄 Refresh
+                </button>
+                <button onClick={handleCopy} className={`btn-secondary ${copied ? 'copied' : ''}`}>
+                  {copied ? '✓ Copied!' : 'Copy Text'}
+                </button>
+              </div>
             )}
           </div>
 
