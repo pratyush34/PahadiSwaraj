@@ -105,6 +105,12 @@ body {
   color: var(--primary);
 }
 
+.nav-link.active {
+  color: var(--primary);
+  border-bottom: 3px solid var(--primary);
+  padding-bottom: 2px;
+}
+
 .nav-login {
   background: var(--primary);
   color: white;
@@ -116,6 +122,11 @@ body {
 .nav-login:hover {
   background: var(--primary-hover);
 }
+
+.nav-login.active {
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--primary);
+}
+
 
 .btn-theme {
   background: rgba(255,255,255,0.1);

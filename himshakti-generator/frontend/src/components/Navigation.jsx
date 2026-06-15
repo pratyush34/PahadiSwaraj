@@ -1,10 +1,17 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 export default function Navigation({ theme, setTheme }) {
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const location = useLocation();
 
   const closeMenu = () => setMenuOpen(false);
+
+  const isActive = (path) => {
+    if (path === '/' && location.pathname === '/') return true;
+    if (path !== '/' && location.pathname.startsWith(path)) return true;
+    return false;
+  };
 
   return (
     <nav className="navbar">
@@ -26,28 +33,28 @@ export default function Navigation({ theme, setTheme }) {
         <div className={`nav-menu ${menuOpen ? 'active' : ''}`}>
           <Link 
             to="/" 
-            className="nav-link"
+            className={`nav-link ${isActive('/') ? 'active' : ''}`}
             onClick={closeMenu}
           >
             Home
           </Link>
           <Link 
             to="/dashboard" 
-            className="nav-link"
+            className={`nav-link ${isActive('/dashboard') ? 'active' : ''}`}
             onClick={closeMenu}
           >
             Dashboard
           </Link>
           <Link 
             to="/about" 
-            className="nav-link"
+            className={`nav-link ${isActive('/about') ? 'active' : ''}`}
             onClick={closeMenu}
           >
             About
           </Link>
           <Link 
             to="/login" 
-            className="nav-link nav-login"
+            className={`nav-link nav-login ${isActive('/login') ? 'active' : ''}`}
             onClick={closeMenu}
           >
             Login
