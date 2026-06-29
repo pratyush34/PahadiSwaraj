@@ -192,29 +192,17 @@ app.post('/api/generate', async (req, res) => {
   }
 });
 
-
 // Retrieve history route
-// 2 (Upgraded). Retrieve history route with built-in search/filter
 app.get('/api/history', async (req, res) => {
   try {
     if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({ error: 'Database unavailable.' });
+      return res.status(503).json({ error: 'Database unavailable. Check MongoDB connection.' });
     }
-    
-    // Extract the search term from the query parameter (e.g., ?search=tea)
-    const { search } = req.query;
-    let queryCondition = {};
-
-    // If a search term exists, filter by product name using a case-insensitive regex
-    if (search) {
-      queryCondition = { productName: { $regex: search, $options: 'i' } };
-    }
-
-    const history = await Description.find(queryCondition).sort({ createdAt: -1 }).limit(10);
+    const history = await Description.find().sort({ createdAt: -1 }).limit(10);
     res.status(200).json({ success: true, data: history });
   } catch (error) {
     console.error('History retrieval error:', error);
-    res.status(500).json({ error: 'Failed to retrieve history logs' });
+    res.status(500).json({ error: 'Failed to retrieve history logs', details: error.message });
   }
 });
 
@@ -258,64 +246,6 @@ app.delete('/api/history', async (req, res) => {
     console.error('Clear history error:', error);
     res.status(500).json({ error: 'Failed to clear history', details: error.message });
   }
-});
-
-//Get a single history record by ID
-app.get('/api/history/:id', async (req, res) => {
-  try {
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({ error: 'Database unavailable.' });
-    }
-    
-    const record = await Description.findById(req.params.id);
-    
-    // Check if the item exists
-    if (!record) {
-      return res.status(404).json({ error: 'Record not found.' });
-    }
-    
-    // Success status code
-    res.status(200).json({ success: true, data: record });
-  } catch (error) {
-    console.error('Get single record error:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-// 6. Update a single history record by ID
-app.put('/api/history/:id', async (req, res) => {
-  try {
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({ error: 'Database unavailable.' });
-    }
-
-    const { productName, tone } = req.body;
-    
-    // Find and update the document, returning the modified version
-    const updatedRecord = await Description.findByIdAndUpdate(
-      req.params.id,
-      { productName, tone },
-      { new: true, runValidators: true }
-    );
-
-    if (!updatedRecord) {
-      return res.status(404).json({ error: 'Record not found.' });
-    }
-
-    res.status(200).json({ success: true, data: updatedRecord });
-  } catch (error) {
-    console.error('Update record error:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-// Global Error Handling Middleware
-app.use((err, req, res, next) => {
-  console.error('Global Error Caught:', err.stack);
-  res.status(500).json({
-    error: 'Something went wrong on the server!',
-    details: err.message
-  });
 });
 
 app.listen(PORT, () => {
