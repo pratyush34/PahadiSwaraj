@@ -2,15 +2,184 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import rateLimit from 'express-rate-limit';
+import passport from 'passport';
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+import { Strategy as GitHubStrategy } from 'passport-github2';
+import { body, validationResult } from 'express-validator';
+
+import User from './models/User.js';
+import { verifyToken } from './middleware/verifyToken.js';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:5173';
+const BACKEND_ORIGIN = process.env.BACKEND_ORIGIN || `http://localhost:${PORT}`;
+const JWT_SECRET = process.env.JWT_SECRET || 'replace_with_a_secure_secret';
+const JWT_EXPIRY = '7d';
+const SALT_ROUNDS = Number(process.env.SALT_ROUNDS) || 12;
 
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: FRONTEND_ORIGIN,
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
+  })
+);
 app.use(express.json());
+app.use(passport.initialize());
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many auth attempts, please try again in 15 minutes.' }
+});
+
+const registerValidation = [
+  body('name').optional().trim().escape(),
+  body('email').isEmail().normalizeEmail(),
+  body('password').isLength({ min: 8 })
+];
+
+const loginValidation = [
+  body('email').isEmail().normalizeEmail(),
+  body('password').isLength({ min: 8 })
+];
+
+const createJwtForUser = (user) => jwt.sign(
+  { userId: user._id.toString(), email: user.email },
+  JWT_SECRET,
+  { expiresIn: JWT_EXPIRY }
+);
+
+const findOrCreateOAuthUser = async ({ email, name, provider, providerId }) => {
+  if (!email) return null;
+  let user = await User.findOne({ email });
+  if (user) {
+    if (!user.provider) {
+      user.provider = provider;
+      user.providerId = providerId;
+      await user.save();
+    }
+    return user;
+  }
+
+  user = new User({
+    email,
+    name,
+    provider,
+    providerId,
+    passwordHash: null
+  });
+  await user.save();
+  return user;
+};
+
+passport.use(new GoogleStrategy(
+  {
+    clientID: process.env.GOOGLE_CLIENT_ID || '',
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+    callbackURL: process.env.GOOGLE_CALLBACK_URL || `${BACKEND_ORIGIN}/api/auth/google/callback`
+  },
+  async (accessToken, refreshToken, profile, done) => {
+    try {
+      const email = profile.emails?.[0]?.value;
+      const name = profile.displayName || profile.name?.givenName || '';
+      const user = await findOrCreateOAuthUser({
+        email,
+        name,
+        provider: 'google',
+        providerId: profile.id
+      });
+      return done(null, user);
+    } catch (err) {
+      return done(err, null);
+    }
+  }
+));
+
+passport.use(new GitHubStrategy(
+  {
+    clientID: process.env.GITHUB_CLIENT_ID || '',
+    clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
+    callbackURL: process.env.GITHUB_CALLBACK_URL || `${BACKEND_ORIGIN}/api/auth/github/callback`,
+    scope: ['user:email']
+  },
+  async (accessToken, refreshToken, profile, done) => {
+    try {
+      const email = profile.emails?.[0]?.value || profile._json?.email;
+      const name = profile.displayName || profile.username || '';
+      const user = await findOrCreateOAuthUser({
+        email,
+        name,
+        provider: 'github',
+        providerId: profile.id
+      });
+      return done(null, user);
+    } catch (err) {
+      return done(err, null);
+    }
+  }
+));
+
+app.post('/api/auth/register', authLimiter, registerValidation, async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { email, password, name } = req.body;
+  const normalizedEmail = email.toLowerCase();
+  const existingUser = await User.findOne({ email: normalizedEmail });
+  if (existingUser) {
+    return res.status(400).json({ error: 'Email already registered.' });
+  }
+
+  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+  const user = new User({ email: normalizedEmail, name, passwordHash });
+  await user.save();
+  return res.status(201).json({ success: true, message: 'Registration successful. Please log in.' });
+});
+
+app.post('/api/auth/login', authLimiter, loginValidation, async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { email, password } = req.body;
+  const user = await User.findOne({ email: email.toLowerCase() });
+  if (!user || !user.passwordHash) {
+    return res.status(401).json({ error: 'Invalid email or password.' });
+  }
+
+  const passwordMatch = await bcrypt.compare(password, user.passwordHash);
+  if (!passwordMatch) {
+    return res.status(401).json({ error: 'Invalid email or password.' });
+  }
+
+  const token = createJwtForUser(user);
+  return res.status(200).json({ success: true, token, user: { email: user.email, name: user.name } });
+});
+
+app.get('/api/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+app.get('/api/auth/google/callback', passport.authenticate('google', { session: false, failureRedirect: `${FRONTEND_ORIGIN}/login?oauth=failed` }), (req, res) => {
+  const token = createJwtForUser(req.user);
+  res.redirect(`${FRONTEND_ORIGIN}/oauth-callback?token=${token}`);
+});
+
+app.get('/api/auth/github', passport.authenticate('github', { scope: ['user:email'] }));
+app.get('/api/auth/github/callback', passport.authenticate('github', { session: false, failureRedirect: `${FRONTEND_ORIGIN}/login?oauth=failed` }), (req, res) => {
+  const token = createJwtForUser(req.user);
+  res.redirect(`${FRONTEND_ORIGIN}/oauth-callback?token=${token}`);
+});
 
 // MongoDB Connection with fallback and status flag
 let dbConnected = false;
@@ -149,7 +318,7 @@ function generateMockAICopy(productName, ingredients, weight, featuresArray, ton
 }
 
 // Routes
-app.post('/api/generate', async (req, res) => {
+app.post('/api/generate', verifyToken, async (req, res) => {
   try {
     if (mongoose.connection.readyState !== 1) {
       return res.status(503).json({ error: 'Database unavailable. Check MongoDB connection.' });
@@ -192,17 +361,21 @@ app.post('/api/generate', async (req, res) => {
   }
 });
 
-// Retrieve history route
-app.get('/api/history', async (req, res) => {
+// Retrieve history route with optional search/filter
+app.get('/api/history', verifyToken, async (req, res) => {
   try {
     if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({ error: 'Database unavailable. Check MongoDB connection.' });
+      return res.status(503).json({ error: 'Database unavailable.' });
     }
-    const history = await Description.find().sort({ createdAt: -1 }).limit(10);
+
+    const { search } = req.query;
+    const queryCondition = search ? { productName: { $regex: search, $options: 'i' } } : {};
+    const history = await Description.find(queryCondition).sort({ createdAt: -1 }).limit(10);
+
     res.status(200).json({ success: true, data: history });
   } catch (error) {
     console.error('History retrieval error:', error);
-    res.status(500).json({ error: 'Failed to retrieve history logs', details: error.message });
+    res.status(500).json({ error: 'Failed to retrieve history logs' });
   }
 });
 
@@ -219,7 +392,7 @@ process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
 
 // Delete a single history record
-app.delete('/api/history/:id', async (req, res) => {
+app.delete('/api/history/:id', verifyToken, async (req, res) => {
   try {
     if (mongoose.connection.readyState !== 1) {
       return res.status(503).json({ error: 'Database unavailable. Check MongoDB connection.' });
@@ -235,7 +408,7 @@ app.delete('/api/history/:id', async (req, res) => {
 });
 
 // Clear all history
-app.delete('/api/history', async (req, res) => {
+app.delete('/api/history', verifyToken, async (req, res) => {
   try {
     if (mongoose.connection.readyState !== 1) {
       return res.status(503).json({ error: 'Database unavailable. Check MongoDB connection.' });
@@ -246,6 +419,64 @@ app.delete('/api/history', async (req, res) => {
     console.error('Clear history error:', error);
     res.status(500).json({ error: 'Failed to clear history', details: error.message });
   }
+});
+
+// Get a single history record by ID
+app.get('/api/history/:id', verifyToken, async (req, res) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ error: 'Database unavailable.' });
+    }
+    
+    const record = await Description.findById(req.params.id);
+    
+    // Check if the item exists
+    if (!record) {
+      return res.status(404).json({ error: 'Record not found.' });
+    }
+    
+    // Success status code
+    res.status(200).json({ success: true, data: record });
+  } catch (error) {
+    console.error('Get single record error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// 6. Update a single history record by ID
+app.put('/api/history/:id', async (req, res) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ error: 'Database unavailable.' });
+    }
+
+    const { productName, tone } = req.body;
+    
+    // Find and update the document, returning the modified version
+    const updatedRecord = await Description.findByIdAndUpdate(
+      req.params.id,
+      { productName, tone },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedRecord) {
+      return res.status(404).json({ error: 'Record not found.' });
+    }
+
+    res.status(200).json({ success: true, data: updatedRecord });
+  } catch (error) {
+    console.error('Update record error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Global Error Handling Middleware
+app.use((err, req, res, next) => {
+  console.error('Global Error Caught:', err.stack);
+  res.status(500).json({
+    error: 'Something went wrong on the server!',
+    details: err.message
+  });
 });
 
 app.listen(PORT, () => {
