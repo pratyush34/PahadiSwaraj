@@ -2,6 +2,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+<<<<<<< HEAD
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
@@ -12,6 +13,12 @@ import { body, validationResult } from 'express-validator';
 
 import User from './models/User.js';
 import { verifyToken } from './middleware/verifyToken.js';
+=======
+import passport from 'passport';
+import authRoutes from './routes/auth.js';
+import verifyToken from './middleware/verifyToken.js';
+import './config/passport.js';
+>>>>>>> 6a3d0ab (Added backend auth files: User.js, auth.js, verifyToken.js, passport.js)
 
 dotenv.config();
 
@@ -24,6 +31,7 @@ const JWT_EXPIRY = '7d';
 const SALT_ROUNDS = Number(process.env.SALT_ROUNDS) || 12;
 
 // Middleware
+<<<<<<< HEAD
 app.use(
   cors({
     origin: FRONTEND_ORIGIN,
@@ -180,6 +188,17 @@ app.get('/api/auth/github/callback', passport.authenticate('github', { session: 
   const token = createJwtForUser(req.user);
   res.redirect(`${FRONTEND_ORIGIN}/oauth-callback?token=${token}`);
 });
+=======
+app.use(cors({
+  origin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true
+}));
+app.use(express.json());
+app.use(passport.initialize());
+app.use('/api/auth', authRoutes);
+app.use('/api', verifyToken);
+>>>>>>> 6a3d0ab (Added backend auth files: User.js, auth.js, verifyToken.js, passport.js)
 
 // MongoDB Connection with fallback and status flag
 let dbConnected = false;

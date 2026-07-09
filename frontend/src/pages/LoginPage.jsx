@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { setToken } from '../utils/auth.js';
+import { API_BASE } from '../utils/auth.js';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -14,16 +16,23 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
+<<<<<<< HEAD
       const response = await fetch('http://localhost:5000/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
+=======
+      const response = await fetch(`${API_BASE}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+>>>>>>> 6a3d0ab (Added backend auth files: User.js, auth.js, verifyToken.js, passport.js)
         body: JSON.stringify({ email, password })
       });
 
       const result = await response.json();
       if (response.ok) {
+<<<<<<< HEAD
         localStorage.setItem('pahadiSwarajToken', result.token);
         navigate('/dashboard');
       } else {
@@ -31,6 +40,15 @@ export default function LoginPage() {
       }
     } catch (err) {
       setError('Unable to reach authentication service.');
+=======
+        setToken(result.token);
+        navigate('/dashboard');
+      } else {
+        setError(result.error || 'Login failed.');
+      }
+    } catch (err) {
+      setError('Unable to reach backend server.');
+>>>>>>> 6a3d0ab (Added backend auth files: User.js, auth.js, verifyToken.js, passport.js)
     } finally {
       setIsLoading(false);
     }
@@ -81,12 +99,12 @@ export default function LoginPage() {
         </div>
 
         <div className="login-social">
-          <button className="btn-social google">
+          <a className="btn-social google" href={`${API_BASE}/api/auth/google`}>
             <span>🔗</span> Continue with Google
-          </button>
-          <button className="btn-social github">
+          </a>
+          <a className="btn-social github" href={`${API_BASE}/api/auth/github`}>
             <span>🔗</span> Continue with GitHub
-          </button>
+          </a>
         </div>
 
         <div className="login-footer">

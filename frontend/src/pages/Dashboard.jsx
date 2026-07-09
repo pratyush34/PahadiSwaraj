@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE, getAuthHeaders } from '../utils/auth.js';
 
 export default function Dashboard() {
   const [formData, setFormData] = useState({
@@ -19,11 +20,18 @@ export default function Dashboard() {
   // Fetch recent history on load
   const fetchHistory = async () => {
     try {
+<<<<<<< HEAD
       const token = localStorage.getItem('pahadiSwarajToken');
       const response = await fetch('http://localhost:5000/api/history', {
         headers: {
           'Content-Type': 'application/json',
           Authorization: token ? `Bearer ${token}` : ''
+=======
+      const response = await fetch(`${API_BASE}/api/history`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+>>>>>>> 6a3d0ab (Added backend auth files: User.js, auth.js, verifyToken.js, passport.js)
         }
       });
       const result = await response.json();
@@ -65,12 +73,20 @@ export default function Dashboard() {
     setCopied(false);
 
     try {
+<<<<<<< HEAD
       const token = localStorage.getItem('pahadiSwarajToken');
       const response = await fetch('http://localhost:5000/api/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: token ? `Bearer ${token}` : ''
+=======
+      const response = await fetch(`${API_BASE}/api/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+>>>>>>> 6a3d0ab (Added backend auth files: User.js, auth.js, verifyToken.js, passport.js)
         },
         body: JSON.stringify(formData)
       });
@@ -106,7 +122,13 @@ export default function Dashboard() {
 
   const handleDelete = async (id) => {
     try {
-      const res = await fetch(`https://localhost:5000/api/history/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/history/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        }
+      });
       if (res.ok) fetchHistory();
       else {
         const json = await res.json();
@@ -120,7 +142,13 @@ export default function Dashboard() {
   const handleClearAll = async () => {
     if (!confirm('Clear all stored logs? This action cannot be undone.')) return;
     try {
-      const res = await fetch('https://localhost:5000/api/history', { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/history`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        }
+      });
       if (res.ok) fetchHistory();
       else {
         const json = await res.json();
