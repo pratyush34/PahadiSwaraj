@@ -8,30 +8,18 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
-<<<<<<< HEAD
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "express-rate-limit": "^6.11.0",
     "express-validator": "^7.0.1",
-=======
-    "bcrypt": "^5.1.1",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2",
-    "express-rate-limit": "^7.0.1",
->>>>>>> 6a3d0ab (Added backend auth files: User.js, auth.js, verifyToken.js, passport.js)
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.3.1",
     "passport": "^0.6.0",
     "passport-github2": "^0.1.12",
-<<<<<<< HEAD
-    "passport-google-oauth20": "^2.0.0"
-=======
     "passport-google-oauth20": "^2.0.0",
     "zod": "^3.22.2"
->>>>>>> 6a3d0ab (Added backend auth files: User.js, auth.js, verifyToken.js, passport.js)
   },
   "devDependencies": {
     "nodemon": "^3.1.0"

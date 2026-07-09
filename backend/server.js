@@ -2,23 +2,10 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
-<<<<<<< HEAD
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import rateLimit from 'express-rate-limit';
-import passport from 'passport';
-import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { Strategy as GitHubStrategy } from 'passport-github2';
-import { body, validationResult } from 'express-validator';
-
-import User from './models/User.js';
-import { verifyToken } from './middleware/verifyToken.js';
-=======
 import passport from 'passport';
 import authRoutes from './routes/auth.js';
 import verifyToken from './middleware/verifyToken.js';
 import './config/passport.js';
->>>>>>> 6a3d0ab (Added backend auth files: User.js, auth.js, verifyToken.js, passport.js)
 
 dotenv.config();
 
@@ -31,7 +18,6 @@ const JWT_EXPIRY = '7d';
 const SALT_ROUNDS = Number(process.env.SALT_ROUNDS) || 12;
 
 // Middleware
-<<<<<<< HEAD
 app.use(
   cors({
     origin: FRONTEND_ORIGIN,
@@ -41,164 +27,8 @@ app.use(
 );
 app.use(express.json());
 app.use(passport.initialize());
-
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many auth attempts, please try again in 15 minutes.' }
-});
-
-const registerValidation = [
-  body('name').optional().trim().escape(),
-  body('email').isEmail().normalizeEmail(),
-  body('password').isLength({ min: 8 })
-];
-
-const loginValidation = [
-  body('email').isEmail().normalizeEmail(),
-  body('password').isLength({ min: 8 })
-];
-
-const createJwtForUser = (user) => jwt.sign(
-  { userId: user._id.toString(), email: user.email },
-  JWT_SECRET,
-  { expiresIn: JWT_EXPIRY }
-);
-
-const findOrCreateOAuthUser = async ({ email, name, provider, providerId }) => {
-  if (!email) return null;
-  let user = await User.findOne({ email });
-  if (user) {
-    if (!user.provider) {
-      user.provider = provider;
-      user.providerId = providerId;
-      await user.save();
-    }
-    return user;
-  }
-
-  user = new User({
-    email,
-    name,
-    provider,
-    providerId,
-    passwordHash: null
-  });
-  await user.save();
-  return user;
-};
-
-passport.use(new GoogleStrategy(
-  {
-    clientID: process.env.GOOGLE_CLIENT_ID || '',
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-    callbackURL: process.env.GOOGLE_CALLBACK_URL || `${BACKEND_ORIGIN}/api/auth/google/callback`
-  },
-  async (accessToken, refreshToken, profile, done) => {
-    try {
-      const email = profile.emails?.[0]?.value;
-      const name = profile.displayName || profile.name?.givenName || '';
-      const user = await findOrCreateOAuthUser({
-        email,
-        name,
-        provider: 'google',
-        providerId: profile.id
-      });
-      return done(null, user);
-    } catch (err) {
-      return done(err, null);
-    }
-  }
-));
-
-passport.use(new GitHubStrategy(
-  {
-    clientID: process.env.GITHUB_CLIENT_ID || '',
-    clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
-    callbackURL: process.env.GITHUB_CALLBACK_URL || `${BACKEND_ORIGIN}/api/auth/github/callback`,
-    scope: ['user:email']
-  },
-  async (accessToken, refreshToken, profile, done) => {
-    try {
-      const email = profile.emails?.[0]?.value || profile._json?.email;
-      const name = profile.displayName || profile.username || '';
-      const user = await findOrCreateOAuthUser({
-        email,
-        name,
-        provider: 'github',
-        providerId: profile.id
-      });
-      return done(null, user);
-    } catch (err) {
-      return done(err, null);
-    }
-  }
-));
-
-app.post('/api/auth/register', authLimiter, registerValidation, async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
-  const { email, password, name } = req.body;
-  const normalizedEmail = email.toLowerCase();
-  const existingUser = await User.findOne({ email: normalizedEmail });
-  if (existingUser) {
-    return res.status(400).json({ error: 'Email already registered.' });
-  }
-
-  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-  const user = new User({ email: normalizedEmail, name, passwordHash });
-  await user.save();
-  return res.status(201).json({ success: true, message: 'Registration successful. Please log in.' });
-});
-
-app.post('/api/auth/login', authLimiter, loginValidation, async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
-  const { email, password } = req.body;
-  const user = await User.findOne({ email: email.toLowerCase() });
-  if (!user || !user.passwordHash) {
-    return res.status(401).json({ error: 'Invalid email or password.' });
-  }
-
-  const passwordMatch = await bcrypt.compare(password, user.passwordHash);
-  if (!passwordMatch) {
-    return res.status(401).json({ error: 'Invalid email or password.' });
-  }
-
-  const token = createJwtForUser(user);
-  return res.status(200).json({ success: true, token, user: { email: user.email, name: user.name } });
-});
-
-app.get('/api/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-app.get('/api/auth/google/callback', passport.authenticate('google', { session: false, failureRedirect: `${FRONTEND_ORIGIN}/login?oauth=failed` }), (req, res) => {
-  const token = createJwtForUser(req.user);
-  res.redirect(`${FRONTEND_ORIGIN}/oauth-callback?token=${token}`);
-});
-
-app.get('/api/auth/github', passport.authenticate('github', { scope: ['user:email'] }));
-app.get('/api/auth/github/callback', passport.authenticate('github', { session: false, failureRedirect: `${FRONTEND_ORIGIN}/login?oauth=failed` }), (req, res) => {
-  const token = createJwtForUser(req.user);
-  res.redirect(`${FRONTEND_ORIGIN}/oauth-callback?token=${token}`);
-});
-=======
-app.use(cors({
-  origin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  credentials: true
-}));
-app.use(express.json());
-app.use(passport.initialize());
 app.use('/api/auth', authRoutes);
 app.use('/api', verifyToken);
->>>>>>> 6a3d0ab (Added backend auth files: User.js, auth.js, verifyToken.js, passport.js)
 
 // MongoDB Connection with fallback and status flag
 let dbConnected = false;

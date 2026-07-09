@@ -1,28 +1,15 @@
-<<<<<<< HEAD
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { setToken } from '../utils/auth.js';
 
 export default function OAuthCallback() {
+  const [message, setMessage] = useState('Finishing sign in...');
   const navigate = useNavigate();
   const { search } = useLocation();
 
   useEffect(() => {
     const params = new URLSearchParams(search);
     const token = params.get('token');
-=======
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { setToken } from '../utils/auth.js';
-
-export default function OAuthCallback() {
-  const [message, setMessage] = useState('Finishing sign in...');
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const token = searchParams.get('token');
->>>>>>> 6a3d0ab (Added backend auth files: User.js, auth.js, verifyToken.js, passport.js)
 
     if (token) {
       setToken(token);
