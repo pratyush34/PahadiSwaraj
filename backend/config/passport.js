@@ -1,9 +1,12 @@
+import 'dotenv/config';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Strategy as GitHubStrategy } from 'passport-github2';
 import User from '../models/User.js';
 
-const BACKEND_ORIGIN = process.env.BACKEND_ORIGIN || 'http://localhost:5000';
+const BACKEND_ORIGIN = (process.env.BACKEND_ORIGIN || 'http://localhost:5000').replace(/\/$/, '');
+const GOOGLE_REDIRECT_URI = `${BACKEND_ORIGIN}/api/auth/google/callback`;
+const GITHUB_REDIRECT_URI = `${BACKEND_ORIGIN}/api/auth/github/callback`;
 
 passport.serializeUser((user, done) => {
   done(null, user.id);
@@ -18,13 +21,25 @@ passport.deserializeUser(async (id, done) => {
   }
 });
 
-if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+const isPlaceholderValue = (value) => {
+  if (!value || typeof value !== 'string') return true;
+  const normalized = value.trim().toLowerCase();
+  return !normalized || normalized.includes('your_') || normalized.includes('your-') || normalized.includes('example') || normalized.includes('replace_with') || normalized.includes('changeme') || normalized.includes('placeholder');
+};
+
+const hasOAuthConfig = (provider) => {
+  const clientIdKey = provider === 'google' ? 'GOOGLE_CLIENT_ID' : 'GITHUB_CLIENT_ID';
+  const clientSecretKey = provider === 'google' ? 'GOOGLE_CLIENT_SECRET' : 'GITHUB_CLIENT_SECRET';
+  return !isPlaceholderValue(process.env[clientIdKey]) && !isPlaceholderValue(process.env[clientSecretKey]);
+};
+
+if (hasOAuthConfig('google')) {
   passport.use(
     new GoogleStrategy(
       {
         clientID: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        callbackURL: `${BACKEND_ORIGIN}/api/auth/google/callback`
+        callbackURL: GOOGLE_REDIRECT_URI
       },
       async (accessToken, refreshToken, profile, done) => {
         try {
@@ -56,13 +71,13 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   );
 }
 
-if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
+if (hasOAuthConfig('github')) {
   passport.use(
     new GitHubStrategy(
       {
         clientID: process.env.GITHUB_CLIENT_ID,
         clientSecret: process.env.GITHUB_CLIENT_SECRET,
-        callbackURL: `${BACKEND_ORIGIN}/api/auth/github/callback`,
+        callbackURL: GITHUB_REDIRECT_URI,
         scope: ['user:email']
       },
       async (accessToken, refreshToken, profile, done) => {

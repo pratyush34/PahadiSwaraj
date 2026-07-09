@@ -169,6 +169,27 @@ body {
   width: 100%;
 }
 
+/* ============ LOGIN ============ */
+.error-banner {
+  background: #ffe6e6;
+  border: 1px solid #ffb3b3;
+  border-radius: 8px;
+  color: #8a1f1f;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.error-banner .error-text {
+  margin: 0;
+  font-weight: 600;
+}
+
+.error-banner.rate-limit-banner {
+  background: #fff7ed;
+  border-color: #fdba74;
+  color: #9a2c00;
+}
+
 /* ============ HOMEPAGE ============ */
 .homepage {
   animation: fadeIn 0.3s ease-in;

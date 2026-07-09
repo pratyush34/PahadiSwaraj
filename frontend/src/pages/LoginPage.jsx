@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { setToken } from '../utils/auth.js';
 import { API_BASE } from '../utils/auth.js';
 
@@ -7,12 +7,24 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isRateLimited, setIsRateLimited] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = new URLSearchParams(location.search).get('returnTo') || '/dashboard';
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const oauthError = params.get('message') || params.get('error');
+    if (oauthError) {
+      setError(oauthError);
+    }
+  }, [location.search]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setIsRateLimited(false);
     setIsLoading(true);
 
     try {
@@ -25,7 +37,10 @@ export default function LoginPage() {
       const result = await response.json();
       if (response.ok) {
         setToken(result.token);
-        navigate('/dashboard');
+        navigate(returnTo, { replace: true });
+      } else if (response.status === 429) {
+        setIsRateLimited(true);
+        setError(result.error || 'Too many invalid login attempts. Please wait a few minutes and try again.');
       } else {
         setError(result.error || 'Invalid credentials');
       }
@@ -69,7 +84,11 @@ export default function LoginPage() {
             />
           </div>
 
-          {error && <p className="error-text">{error}</p>}
+          {error && (
+            <div className={`error-banner${isRateLimited ? ' rate-limit-banner' : ''}`} role="alert">
+              <p className="error-text">{error}</p>
+            </div>
+          )}
 
           <button type="submit" className="btn-primary login-btn" disabled={isLoading}>
             {isLoading ? 'Signing In...' : 'Sign In'}
@@ -81,10 +100,10 @@ export default function LoginPage() {
         </div>
 
         <div className="login-social">
-          <a className="btn-social google" href={`${API_BASE}/api/auth/google`}>
+          <a className="btn-social google" href={`${API_BASE}/api/auth/google?returnTo=${encodeURIComponent(returnTo)}`}>
             <span>🔗</span> Continue with Google
           </a>
-          <a className="btn-social github" href={`${API_BASE}/api/auth/github`}>
+          <a className="btn-social github" href={`${API_BASE}/api/auth/github?returnTo=${encodeURIComponent(returnTo)}`}>
             <span>🔗</span> Continue with GitHub
           </a>
         </div>
@@ -95,6 +114,9 @@ export default function LoginPage() {
           </p>
           <p>
             <Link to="/reset-password" className="link">Forgot your password?</Link>
+          </p>
+          <p className="helper-text">
+            For testing, you can trigger the login rate limit by retrying the login form rapidly in the browser dev tools.
           </p>
         </div>
       </div>

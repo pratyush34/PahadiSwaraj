@@ -151,6 +151,25 @@ npm run dev
 
 *Backend Local URL: `http://localhost:5000/*`
 
+### 4. Configure OAuth (optional for real Google/GitHub sign-in)
+
+To enable real Google or GitHub login, add your provider credentials to the backend environment:
+
+```bash
+# backend/.env
+GOOGLE_CLIENT_ID=your_google_client_id_here
+GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+GITHUB_CLIENT_ID=your_github_client_id_here
+GITHUB_CLIENT_SECRET=your_github_client_secret_here
+```
+
+Use these callback URLs in your Google/GitHub developer apps:
+
+- Google: `http://localhost:5000/api/auth/google/callback`
+- GitHub: `http://localhost:5000/api/auth/github/callback`
+
+If the credentials are not set, the app will use a local demo fallback for development.
+
 ---
 
 ## 📌 Project Status

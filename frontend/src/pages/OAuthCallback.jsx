@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { setToken } from '../utils/auth.js';
 
@@ -10,10 +10,11 @@ export default function OAuthCallback() {
   useEffect(() => {
     const params = new URLSearchParams(search);
     const token = params.get('token');
+    const returnTo = params.get('returnTo') || '/dashboard';
 
     if (token) {
       setToken(token);
-      navigate('/dashboard', { replace: true });
+      navigate(returnTo, { replace: true });
     } else {
       setMessage('Authentication failed. Redirecting to login...');
       setTimeout(() => navigate('/login?oauth=failed', { replace: true }), 1800);

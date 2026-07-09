@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { isAuthenticated } from '../utils/auth.js';
 
 export default function Navigation({ theme, setTheme }) {
   const [menuOpen, setMenuOpen] = React.useState(false);
@@ -38,13 +39,24 @@ export default function Navigation({ theme, setTheme }) {
           >
             Home
           </Link>
-          <Link 
-            to="/dashboard" 
-            className={`nav-link ${isActive('/dashboard') ? 'active' : ''}`}
-            onClick={closeMenu}
-          >
-            Dashboard
-          </Link>
+          {isAuthenticated() && (
+            <>
+              <Link 
+                to="/dashboard" 
+                className={`nav-link ${isActive('/dashboard') ? 'active' : ''}`}
+                onClick={closeMenu}
+              >
+                Dashboard
+              </Link>
+              <Link 
+                to="/profile" 
+                className={`nav-link ${isActive('/profile') ? 'active' : ''}`}
+                onClick={closeMenu}
+              >
+                Profile
+              </Link>
+            </>
+          )}
           <Link 
             to="/about" 
             className={`nav-link ${isActive('/about') ? 'active' : ''}`}
@@ -52,20 +64,24 @@ export default function Navigation({ theme, setTheme }) {
           >
             About
           </Link>
-          <Link 
-            to="/login" 
-            className={`nav-link nav-login ${isActive('/login') ? 'active' : ''}`}
-            onClick={closeMenu}
-          >
-            Login
-          </Link>
-          <Link 
-            to="/signup" 
-            className={`nav-link nav-signup ${isActive('/signup') ? 'active' : ''}`}
-            onClick={closeMenu}
-          >
-            Sign Up
-          </Link>
+          {!isAuthenticated() ? (
+            <>
+              <Link 
+                to="/login" 
+                className={`nav-link nav-login ${isActive('/login') ? 'active' : ''}`}
+                onClick={closeMenu}
+              >
+                Login
+              </Link>
+              <Link 
+                to="/signup" 
+                className={`nav-link nav-signup ${isActive('/signup') ? 'active' : ''}`}
+                onClick={closeMenu}
+              >
+                Sign Up
+              </Link>
+            </>
+          ) : null}
           <button 
             className="btn-theme"
             onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}

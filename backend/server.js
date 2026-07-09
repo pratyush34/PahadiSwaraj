@@ -1,13 +1,11 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
-import dotenv from 'dotenv';
+import 'dotenv/config';
 import passport from 'passport';
 import authRoutes from './routes/auth.js';
 import verifyToken from './middleware/verifyToken.js';
 import './config/passport.js';
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -18,9 +16,17 @@ const JWT_EXPIRY = '7d';
 const SALT_ROUNDS = Number(process.env.SALT_ROUNDS) || 12;
 
 // Middleware
+const allowedOrigins = [FRONTEND_ORIGIN, 'http://localhost:5174', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174'];
+
 app.use(
   cors({
-    origin: FRONTEND_ORIGIN,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization']
   })
