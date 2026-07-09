@@ -20,18 +20,10 @@ export default function Dashboard() {
   // Fetch recent history on load
   const fetchHistory = async () => {
     try {
-<<<<<<< HEAD
-      const token = localStorage.getItem('pahadiSwarajToken');
-      const response = await fetch('http://localhost:5000/api/history', {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : ''
-=======
       const response = await fetch(`${API_BASE}/api/history`, {
         headers: {
           'Content-Type': 'application/json',
           ...getAuthHeaders()
->>>>>>> 6a3d0ab (Added backend auth files: User.js, auth.js, verifyToken.js, passport.js)
         }
       });
       const result = await response.json();
@@ -73,20 +65,11 @@ export default function Dashboard() {
     setCopied(false);
 
     try {
-<<<<<<< HEAD
-      const token = localStorage.getItem('pahadiSwarajToken');
-      const response = await fetch('http://localhost:5000/api/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : ''
-=======
       const response = await fetch(`${API_BASE}/api/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...getAuthHeaders()
->>>>>>> 6a3d0ab (Added backend auth files: User.js, auth.js, verifyToken.js, passport.js)
         },
         body: JSON.stringify(formData)
       });

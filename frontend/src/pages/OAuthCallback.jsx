@@ -15,30 +15,15 @@ export default function OAuthCallback() {
       setToken(token);
       navigate('/dashboard', { replace: true });
     } else {
-<<<<<<< HEAD
-      navigate('/login?oauth=failed', { replace: true });
+      setMessage('Authentication failed. Redirecting to login...');
+      setTimeout(() => navigate('/login?oauth=failed', { replace: true }), 1800);
     }
   }, [navigate, search]);
 
   return (
     <div className="oauth-callback">
       <h2>Signing you in...</h2>
-      <p>Please wait while we finish connecting your account.</p>
-=======
-      setMessage('Authentication failed. Redirecting to login...');
-      setTimeout(() => navigate('/login', { replace: true }), 1800);
-    }
-  }, [navigate]);
-
-  return (
-    <div className="login-page">
-      <div className="login-container">
-        <div className="login-header">
-          <h1>OAuth Sign In</h1>
-          <p>{message}</p>
-        </div>
-      </div>
->>>>>>> 6a3d0ab (Added backend auth files: User.js, auth.js, verifyToken.js, passport.js)
+      <p>{message}</p>
     </div>
   );
 }

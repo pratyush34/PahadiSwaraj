@@ -16,39 +16,21 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-<<<<<<< HEAD
-      const response = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-=======
       const response = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
->>>>>>> 6a3d0ab (Added backend auth files: User.js, auth.js, verifyToken.js, passport.js)
         body: JSON.stringify({ email, password })
       });
 
       const result = await response.json();
       if (response.ok) {
-<<<<<<< HEAD
-        localStorage.setItem('pahadiSwarajToken', result.token);
+        setToken(result.token);
         navigate('/dashboard');
       } else {
         setError(result.error || 'Invalid credentials');
       }
     } catch (err) {
       setError('Unable to reach authentication service.');
-=======
-        setToken(result.token);
-        navigate('/dashboard');
-      } else {
-        setError(result.error || 'Login failed.');
-      }
-    } catch (err) {
-      setError('Unable to reach backend server.');
->>>>>>> 6a3d0ab (Added backend auth files: User.js, auth.js, verifyToken.js, passport.js)
     } finally {
       setIsLoading(false);
     }
