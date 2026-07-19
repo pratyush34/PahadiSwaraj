@@ -217,8 +217,17 @@ export default function Dashboard() {
           {errorMessage && <p className="error-text">{errorMessage}</p>}
         </form>
 
+
         {/* Output Panel */}
-        <div className="card output-panel">
+          <div className="card output-panel" style={{ position: 'relative' }}>
+  
+          {/* Add this block right here to handle the loading state overlay */}
+          {isLoading && (
+          <div className="loading-overlay">
+          <div className="loader"></div> {/* Or replace with your custom <Loader /> component */}
+          <p>AI is crafting your descriptions...</p>
+          </div>
+        )}
           <div className="output-header">
             <div>
               <h3>Optimized Description Output</h3>
